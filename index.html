@@ -60,7 +60,7 @@ header{
 .icon-btn:hover{color:var(--tx);border-color:var(--cao)}
 /* ---------- layout ---------- */
 main{flex:1; display:grid; grid-template-columns:1fr 384px; min-height:0}
-.chat-col{display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--line)}
+.chat-col{display:flex; flex-direction:column; min-width:0; min-height:0; border-right:1px solid var(--line)}
 .topic-strip{
   padding:10px 22px; font-size:13px; color:var(--tx-mut); border-bottom:1px solid var(--line);
   display:flex; flex-direction:column; gap:3px;
@@ -68,7 +68,7 @@ main{flex:1; display:grid; grid-template-columns:1fr 384px; min-height:0}
 .topic-strip .muti{font-size:12px; color:var(--tx-mut)}
 .topic-strip .todays{color:var(--tx)}
 .topic-strip b{color:var(--paper); font-family:var(--serif); font-weight:700}
-.stream{flex:1; overflow-y:auto; padding:22px 22px 8px; display:flex; flex-direction:column; gap:18px}
+.stream{flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding:22px 22px 8px; display:flex; flex-direction:column; gap:18px}
 .stream::-webkit-scrollbar{width:8px}
 .stream::-webkit-scrollbar-thumb{background:rgba(127,179,154,.22); border-radius:4px}
 .msg{display:flex; gap:11px; max-width:88%; animation:rise .4s ease both}
@@ -415,12 +415,17 @@ function setGear(g){
 const stream=document.getElementById("stream");
 const messages=[{role:"system",content:SYS}];
 
+// 智能滚动：贴底时跟随，往上翻则不打扰
+let stick=true;
+stream.addEventListener("scroll",()=>{ stick = stream.scrollHeight - stream.scrollTop - stream.clientHeight < 60; });
+function scrollDown(){ if(stick) stream.scrollTop=stream.scrollHeight; }
+
 function addMsg(role,text){
   const m=document.createElement("div");
   m.className="msg "+(role==="me"?"me":"ai");
   m.innerHTML=`<div class="av">${role==="me"?"你":"辩"}</div><div class="bubble"></div>`;
   m.querySelector(".bubble").textContent=text;
-  stream.appendChild(m); stream.scrollTop=stream.scrollHeight;
+  stream.appendChild(m); stick=true; stream.scrollTop=stream.scrollHeight;  // 新消息=回到底部
   return m;
 }
 function renderOptions(opts){
@@ -432,7 +437,7 @@ function renderOptions(opts){
     b.onclick=()=>{ box.remove(); send(o); };
     box.appendChild(b);
   });
-  stream.appendChild(box); stream.scrollTop=stream.scrollHeight;
+  stream.appendChild(box); scrollDown();
 }
 
 // parse the trailing ⟦...⟧ machine tags, return {clean, tags}
@@ -498,7 +503,7 @@ async function send(text){
     const raw=await streamAPI(full=>{
       if(!started){ started=true; aiMsg.classList.remove("typing"); }
       bub.textContent=full.split("⟦")[0].trim();  // 实时渲染，隐藏末尾机器标记
-      stream.scrollTop=stream.scrollHeight;
+      scrollDown();
     });
     const {clean,tags}=parseTags(raw);
     aiMsg.classList.remove("typing");
